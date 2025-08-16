@@ -5,3 +5,7 @@ res://BushSpawner.gd
 res://ExplosionSystem.gd
 res://FleshCube.tscn
 res://EnvironmentManager.gd
+res://TerrainManager.gd
+res://PositionManager.gd
+res://DebugMenu.gd
+res://DayNightCycle.gd

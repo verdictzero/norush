@@ -1,10 +1,10 @@
 extends RigidBody3D
 
-@export var torque_strength: float = 3.0
+@export var torque_strength: float = 15.0
 @export var max_torque: float = 50.0
 @export var max_speed: float = 15.0
 @export var max_angular_velocity: float = 8.0
-@export var rolling_friction: float = 0.92
+@export var rolling_friction: float = 0.98
 @export var stress_buildup_rate: float = 0.3
 @export var stress_decay_rate: float = 0.3
 @export var health_damage_rate: float = 5.0
@@ -32,10 +32,10 @@ func _ready():
 	lives = max_lives
 	last_position = global_position
 	# Set RigidBody3D properties for heavy cube
-	gravity_scale = 1.5
-	mass = 5.0
-	linear_damp = 0.1
-	angular_damp = 0.3
+	gravity_scale = 1.0
+	mass = 2.0
+	linear_damp = 0.01
+	angular_damp = 0.05
 	
 	# Ensure player has collision detection
 	setup_collision_if_needed()
@@ -54,7 +54,7 @@ func _physics_process(delta):
 	
 	update_distance_travelled()
 	update_score(delta)
-	check_terrain_collision()
+	# Terrain collision checking disabled - let physics handle collision
 
 func setup_collision_if_needed():
 	# Check if player already has a collision shape
@@ -70,14 +70,14 @@ func setup_collision_if_needed():
 					has_collision = true
 					break
 	
-	# If no collision found, add a sphere collision for the player
+	# If no collision found, add a box collision for the player (cube behavior)
 	if not has_collision:
 		var collision_shape = CollisionShape3D.new()
-		var sphere_shape = SphereShape3D.new()
-		sphere_shape.radius = 0.5
-		collision_shape.shape = sphere_shape
+		var box_shape = BoxShape3D.new()
+		box_shape.size = Vector3(0.8, 0.8, 0.8)
+		collision_shape.shape = box_shape
 		add_child(collision_shape)
-		print("Added collision shape to player")
+		print("Added box collision shape to player")
 
 func handle_input(delta):
 	var input_vector = Vector3()
@@ -209,7 +209,7 @@ func explode():
 	await get_tree().create_timer(3.0).timeout
 	
 	print("Respawning... Lives remaining: %d" % lives)
-	global_position = Vector3(0, 5, 0)
+	global_position = Vector3(0, 10, 0)  # Higher respawn position
 	global_rotation = Vector3.ZERO
 	health = 100
 	stress_level = 0
@@ -243,7 +243,7 @@ func restart_game():
 	game_time = 0.0
 	current_score = 0.0
 	is_game_over = false
-	global_position = Vector3(0, 5, 0)
+	global_position = Vector3(0, 10, 0)  # Higher starting position
 	global_rotation = Vector3.ZERO
 	linear_velocity = Vector3.ZERO
 	angular_velocity = Vector3.ZERO
@@ -288,15 +288,15 @@ func update_score(delta):
 func check_terrain_collision():
 	# Get terrain height at current position
 	var terrain_height = get_terrain_height_at(global_position.x, global_position.z)
-	var min_y = terrain_height + 0.3  # Keep player 0.3 units above terrain
+	var min_y = terrain_height + 0.8  # Keep player 0.8 units above terrain
 	
-	# If player is below terrain, push them back up gently
+	# If player is below terrain, push them back up more gently
 	if global_position.y < min_y:
-		var correction = min_y - global_position.y
-		global_position.y += correction * 0.5  # Gradual correction
-		# Only dampen vertical velocity, preserve horizontal movement
-		if linear_velocity.y < 0:
-			linear_velocity.y = max(linear_velocity.y * 0.8, -3.0)
+		var correction = (min_y - global_position.y) * 0.1  # Very gentle correction
+		global_position.y += correction
+		# Only dampen excessive downward velocity
+		if linear_velocity.y < -5.0:
+			linear_velocity.y = -5.0
 
 func get_terrain_height_at(x: float, z: float) -> float:
 	var height = 0.0

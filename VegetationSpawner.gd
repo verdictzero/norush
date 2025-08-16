@@ -311,3 +311,9 @@ func remove_chunk(chunk_key: String):
 	if chunk_key in spawned_chunks:
 		spawned_chunks[chunk_key].queue_free()
 		spawned_chunks.erase(chunk_key)
+
+func shift_chunks(offset: Vector3):
+	# Shift all existing vegetation chunks by the offset
+	for chunk_node in spawned_chunks.values():
+		if is_instance_valid(chunk_node):
+			chunk_node.global_position += offset

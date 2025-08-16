@@ -43,7 +43,7 @@ The game challenges traditional "go fast" mechanics by penalizing speed:
 
 #### Environment Systems
 - **Day/Night Cycle** (`DayNightCycle.gd`): 10-minute cycles affecting lighting and ambient colors
-- **Bush Spawning** (`BushSpawner.gd`): Procedural vegetation using chunk-based clustering
+- **Vegetation Spawning** (`VegetationSpawner.gd`): Procedural vegetation using chunk-based clustering
 - **UI System** (`UI.gd`): Real-time HUD showing speed, health, stress, lives, time, distance, score, and FPS
 
 #### High Score System (`HighScoreManager.gd`)
@@ -62,7 +62,7 @@ The game challenges traditional "go fast" mechanics by penalizing speed:
 ├── ThirdPersonCamera.gd   # Camera controller
 ├── UI.gd                  # User interface management
 ├── DayNightCycle.gd       # Environmental lighting
-├── BushSpawner.gd         # Vegetation spawning
+├── VegetationSpawner.gd   # Vegetation spawning
 ├── HighScoreManager.gd    # Score persistence
 ├── Assets/
 │   ├── blood.tga          # Blood splatter texture

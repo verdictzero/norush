@@ -25,6 +25,12 @@ func setup_material():
 	
 	var grass_texture = load("res://grass_checkered.tga")
 	terrain_material.albedo_texture = grass_texture
+	
+	# Add normal map for grass texture
+	var grass_normal = load("res://grass_checkered_normal.png")
+	if grass_normal:
+		terrain_material.normal_texture = grass_normal
+		terrain_material.normal_scale = 1.0
 
 func _process(delta):
 	if player:
@@ -77,11 +83,12 @@ func create_chunk(chunk_pos: Vector2):
 	mesh_instance.visibility_range_end = 500.0
 	mesh_instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 	
-	# Only add collision for close chunks
+	# Only add collision for close chunks - use convex for better physics
 	if distance_to_player < 4:
-		var shape = mesh.create_trimesh_shape()
-		collision_shape.shape = shape
-		static_body.add_child(collision_shape)
+		var shape = mesh.create_convex_shape()
+		if shape:
+			collision_shape.shape = shape
+			static_body.add_child(collision_shape)
 	
 	static_body.position = Vector3(chunk_pos.x * chunk_size, 0, chunk_pos.y * chunk_size)
 	static_body.add_child(mesh_instance)
@@ -163,3 +170,9 @@ func remove_chunk(chunk_key: String):
 	if chunk_key in chunks:
 		chunks[chunk_key].queue_free()
 		chunks.erase(chunk_key)
+
+func shift_origin(offset: Vector3):
+	# Shift all existing chunks by the offset
+	for chunk_node in chunks.values():
+		if is_instance_valid(chunk_node):
+			chunk_node.global_position += offset
