@@ -1,8 +1,10 @@
 extends RigidBody3D
 
-@export var torque_strength: float = 10.0
+@export var torque_strength: float = 3.0
 @export var max_torque: float = 50.0
-@export var rolling_friction: float = 0.8
+@export var max_speed: float = 15.0
+@export var max_angular_velocity: float = 8.0
+@export var rolling_friction: float = 0.92
 @export var stress_buildup_rate: float = 0.3
 @export var stress_decay_rate: float = 0.3
 @export var health_damage_rate: float = 5.0
@@ -29,9 +31,14 @@ var flash_timer: float = 0.0
 func _ready():
 	lives = max_lives
 	last_position = global_position
-	# Set RigidBody3D properties
-	gravity_scale = 1.0
-	mass = 1.0
+	# Set RigidBody3D properties for heavy cube
+	gravity_scale = 1.5
+	mass = 5.0
+	linear_damp = 0.1
+	angular_damp = 0.3
+	
+	# Ensure player has collision detection
+	setup_collision_if_needed()
 
 func _physics_process(delta):
 	if is_game_over:
@@ -47,6 +54,30 @@ func _physics_process(delta):
 	
 	update_distance_travelled()
 	update_score(delta)
+	check_terrain_collision()
+
+func setup_collision_if_needed():
+	# Check if player already has a collision shape
+	var has_collision = false
+	for child in get_children():
+		if child is CollisionShape3D:
+			has_collision = true
+			break
+		elif child is RigidBody3D and child.get_child_count() > 0:
+			# Check if flesh cube child has collision
+			for grandchild in child.get_children():
+				if grandchild is CollisionShape3D:
+					has_collision = true
+					break
+	
+	# If no collision found, add a sphere collision for the player
+	if not has_collision:
+		var collision_shape = CollisionShape3D.new()
+		var sphere_shape = SphereShape3D.new()
+		sphere_shape.radius = 0.5
+		collision_shape.shape = sphere_shape
+		add_child(collision_shape)
+		print("Added collision shape to player")
 
 func handle_input(delta):
 	var input_vector = Vector3()
@@ -64,7 +95,7 @@ func handle_input(delta):
 		input_vector = input_vector.normalized()
 		
 		# Apply torque for tumbling motion
-		var torque_multiplier = debug_mode ? 5.0 : 1.0
+		var torque_multiplier = 5.0 if debug_mode else 1.0
 		var torque_force = torque_strength * torque_multiplier
 		
 		# Roll forward/backward (rotate around X axis)
@@ -77,6 +108,12 @@ func handle_input(delta):
 		
 		# Calculate current speed from velocity
 		current_speed = linear_velocity.length()
+		
+		# Gradually limit angular velocity to prevent clipping through terrain
+		var current_angular_speed = angular_velocity.length()
+		if current_angular_speed > max_angular_velocity:
+			var limit_factor = max_angular_velocity / current_angular_speed
+			angular_velocity = angular_velocity.lerp(angular_velocity * limit_factor, 0.1)
 	else:
 		# Apply rolling friction
 		angular_velocity *= rolling_friction
@@ -84,7 +121,7 @@ func handle_input(delta):
 		current_speed = linear_velocity.length()
 
 func update_stress(delta):
-	var speed_ratio = current_speed / max_torque
+	var speed_ratio = current_speed / max_speed
 	
 	if speed_ratio > 0.3:
 		stress_level += stress_buildup_rate * speed_ratio * delta
@@ -129,13 +166,18 @@ func apply_material_color(mesh_inst: MeshInstance3D, color: Color):
 			mesh_inst.material_override = mesh_inst.get_surface_override_material(0).duplicate()
 		else:
 			mesh_inst.material_override = StandardMaterial3D.new()
+		
+		# Ensure nearest neighbor filtering for lofi effect
+		if mesh_inst.material_override is StandardMaterial3D:
+			var mat = mesh_inst.material_override as StandardMaterial3D
+			mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	
 	if mesh_inst.material_override is StandardMaterial3D:
 		var mat = mesh_inst.material_override as StandardMaterial3D
 		mat.albedo_color = color
 
 func update_health(delta):
-	var speed_ratio = current_speed / max_torque
+	var speed_ratio = current_speed / max_speed
 	
 	if speed_ratio > 0.6:
 		var damage_multiplier = (speed_ratio - 0.6) * 2.5
@@ -225,10 +267,12 @@ func _input(event):
 				debug_input_buffer = ""
 				if debug_mode:
 					print("🚀 DEBUG MODE ACTIVATED! GODLIKE SPEED ENABLED!")
-					mesh_instance.modulate = Color.CYAN
+					if mesh_instance:
+						mesh_instance.modulate = Color.CYAN
 				else:
 					print("🐌 Debug mode disabled. Back to No Rush!")
-					mesh_instance.modulate = Color.WHITE
+					if mesh_instance:
+						mesh_instance.modulate = Color.WHITE
 
 func update_distance_travelled():
 	var current_pos = Vector3(global_position.x, 0, global_position.z)
@@ -240,3 +284,31 @@ func update_score(delta):
 	game_time += delta
 	if game_time > 0:
 		current_score = (distance_travelled / game_time) * 100.0
+
+func check_terrain_collision():
+	# Get terrain height at current position
+	var terrain_height = get_terrain_height_at(global_position.x, global_position.z)
+	var min_y = terrain_height + 0.3  # Keep player 0.3 units above terrain
+	
+	# If player is below terrain, push them back up gently
+	if global_position.y < min_y:
+		var correction = min_y - global_position.y
+		global_position.y += correction * 0.5  # Gradual correction
+		# Only dampen vertical velocity, preserve horizontal movement
+		if linear_velocity.y < 0:
+			linear_velocity.y = max(linear_velocity.y * 0.8, -3.0)
+
+func get_terrain_height_at(x: float, z: float) -> float:
+	var height = 0.0
+	
+	height += sin(x * 0.005) * cos(z * 0.005) * 8.0
+	height += sin(x * 0.01) * cos(z * 0.01) * 4.0
+	height += sin(x * 0.03) * cos(z * 0.03) * 2.0
+	height += sin(x * 0.08) * cos(z * 0.08) * 0.5
+	
+	var ridge = abs(sin(x * 0.002)) * 6.0
+	var valley = -abs(cos(z * 0.003)) * 4.0
+	
+	height += ridge + valley
+	
+	return height

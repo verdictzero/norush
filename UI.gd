@@ -12,7 +12,7 @@ extends Control
 @onready var score_label: Label = $UIBackground/VBoxContainer/ScoreLabel
 @onready var fps_label: Label = $UIBackground/VBoxContainer/FPSLabel
 
-var player: CharacterBody3D
+var player: RigidBody3D
 var day_night_cycle: Node3D
 
 func _ready():
@@ -20,7 +20,7 @@ func _ready():
 	day_night_cycle = get_node("../DayNightCycle")
 	
 	speedometer.min_value = 0
-	speedometer.max_value = player.max_speed
+	speedometer.max_value = player.max_torque
 	
 	health_bar.min_value = 0
 	health_bar.max_value = 100
@@ -45,9 +45,9 @@ func update_speedometer():
 	speedometer.value = speed
 	speed_label.text = "Speed: %.1f" % speed
 	
-	if speed > player.max_speed * 0.7:
+	if speed > player.max_torque * 0.7:
 		speedometer.modulate = Color.RED
-	elif speed > player.max_speed * 0.4:
+	elif speed > player.max_torque * 0.4:
 		speedometer.modulate = Color.YELLOW
 	else:
 		speedometer.modulate = Color.GREEN

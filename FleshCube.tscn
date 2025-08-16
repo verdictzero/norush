@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3 uid="uid://cuslchfkxdb7a"]
+
+[ext_resource type="PackedScene" uid="uid://345g5m4ejne2" path="res://flesh_cube.glb" id="1_flesh"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1"]
+size = Vector3(0.6, 0.6, 0.6)
+
+[node name="FleshCube" type="Node3D"]
+
+[node name="FleshModel" parent="." instance=ExtResource("1_flesh")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)

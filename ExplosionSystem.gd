@@ -1,7 +1,14 @@
 extends Node3D
 
+# Preload flesh cube prefab
+@export var flesh_cube_scene: PackedScene = preload("res://FleshCube.tscn")
+
 var death_sites: Array[Vector3] = []
 var max_death_sites: int = 10
+
+# Performance tracking
+var active_debris: Array[Node] = []
+var max_active_debris: int = 50
 
 func create_explosion(position: Vector3):
 	print("Creating explosion at: ", position)
@@ -9,77 +16,59 @@ func create_explosion(position: Vector3):
 	if death_sites.size() > max_death_sites:
 		death_sites.pop_front()
 	
+	# Clean up old debris if we have too many
+	cleanup_old_debris()
+	
 	create_cube_gore(position)
 	create_fluid_splatter(position)
 
 func create_cube_gore(explosion_pos: Vector3):
-	var debris_count = 15
+	var debris_count = 8  # Reduced from 15 to improve performance
 	
 	for i in range(debris_count):
-		var debris = RigidBody3D.new()
-		var mesh_instance = MeshInstance3D.new()
-		var collision_shape = CollisionShape3D.new()
+		if not flesh_cube_scene:
+			print("FleshCube scene not loaded, skipping gore creation")
+			return
 		
-		var size = randf_range(0.05, 0.4)
-		var mesh: Mesh
-		var shape_type = randi() % 4
+		# Instance the flesh cube prefab
+		var debris = flesh_cube_scene.instantiate()
 		
-		match shape_type:
-			0:
-				var box_mesh = BoxMesh.new()
-				box_mesh.size = Vector3(size, size * randf_range(0.5, 2.0), size)
-				mesh = box_mesh
-			1:
-				var sphere_mesh = SphereMesh.new()
-				sphere_mesh.radius = size * 0.5
-				sphere_mesh.height = size
-				mesh = sphere_mesh
-			2:
-				var cylinder_mesh = CylinderMesh.new()
-				cylinder_mesh.top_radius = size * 0.3
-				cylinder_mesh.bottom_radius = size * 0.3
-				cylinder_mesh.height = size * 1.5
-				mesh = cylinder_mesh
-			3:
-				var prism_mesh = PrismMesh.new()
-				prism_mesh.left_to_right = size
-				prism_mesh.size = Vector3(size, size, size)
-				mesh = prism_mesh
-		
-		mesh_instance.mesh = mesh
-		
-		# Keep cubes untextured (no material override)
-		
-		var shape = mesh.create_convex_shape()
-		collision_shape.shape = shape
-		
-		debris.add_child(mesh_instance)
-		debris.add_child(collision_shape)
-		
+		# Set random position around explosion
 		debris.position = explosion_pos + Vector3(
 			randf_range(-1.0, 1.0),
-			randf_range(0, 2),
+			randf_range(0.5, 2.5),  # Start higher to prevent immediate terrain collision
 			randf_range(-1.0, 1.0)
 		)
 		
+		# Add random scale variation
+		var scale_factor = randf_range(0.7, 1.5)
+		debris.scale = Vector3.ONE * scale_factor
+		
+		# Apply stronger physics forces for faster movement
 		var force = Vector3(
-			randf_range(-25, 25),
-			randf_range(15, 40),
-			randf_range(-25, 25)
+			randf_range(-40, 40),
+			randf_range(25, 60),  # Stronger upward force
+			randf_range(-40, 40)
 		)
 		
 		# Ensure we have a valid scene tree before adding
 		if get_tree() and get_tree().current_scene:
 			get_tree().current_scene.add_child(debris)
-			# Apply impulse after adding to scene
-			debris.apply_impulse(force)
-			debris.angular_velocity = Vector3(
-				randf_range(-10, 10),
-				randf_range(-10, 10),
-				randf_range(-10, 10)
-			)
+			active_debris.append(debris)
 			
-			create_fade_timer(debris)
+			# Connect cleanup signal
+			if debris.has_signal("tree_exiting"):
+				debris.tree_exiting.connect(_on_debris_removed.bind(debris))
+			
+			# Wait one frame for physics to initialize, then apply forces
+			await get_tree().process_frame
+			if is_instance_valid(debris):
+				debris.apply_impulse(force)
+				debris.angular_velocity = Vector3(
+					randf_range(-15, 15),
+					randf_range(-15, 15),
+					randf_range(-15, 15)
+				)
 		else:
 			debris.queue_free()
 
@@ -126,6 +115,7 @@ func create_particle_blood(explosion_pos: Vector3):
 		material.albedo_color = Color(randf_range(0.7, 1.0), randf_range(0.0, 0.1), randf_range(0.0, 0.05))
 		material.metallic = 0.1
 		material.roughness = 0.9
+		material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		mesh_instance.material_override = material
 		
 		var shape = SphereShape3D.new()
@@ -171,3 +161,19 @@ func fade_object(object: Node3D, alpha: float):
 				mesh_instance.material_override.albedo_color.a = alpha
 		elif object is Decal:
 			object.modulate.a = alpha
+
+func cleanup_old_debris():
+	# Remove excess debris to maintain performance
+	while active_debris.size() > max_active_debris:
+		var oldest_debris = active_debris[0]
+		if is_instance_valid(oldest_debris):
+			oldest_debris.queue_free()
+		active_debris.pop_front()
+	
+	# Clean up invalid references
+	active_debris = active_debris.filter(func(debris): return is_instance_valid(debris))
+
+func _on_debris_removed(debris: Node):
+	var index = active_debris.find(debris)
+	if index != -1:
+		active_debris.remove_at(index)

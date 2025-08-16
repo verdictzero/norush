@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://bqe2vdpjmu5ya"]
+[gd_scene load_steps=12 format=3 uid="uid://bqe2vdpjmu5ya"]
 
 [ext_resource type="Script" uid="uid://c6qk20o8g1h8v" path="res://TerrainManager.gd" id="1_2x3wv"]
 [ext_resource type="Script" uid="uid://b2j5yi736waqf" path="res://Player.gd" id="2_j4b7s"]
@@ -10,9 +10,18 @@
 [ext_resource type="Script" uid="uid://feep8nip02ag" path="res://HighScoreManager.gd" id="8_k2l9s"]
 [ext_resource type="Script" uid="uid://b8naj3juwtaeo" path="res://BushSpawner.gd" id="9_p5r8t"]
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_1"]
+size = Vector3(0.8, 0.8, 0.8)
+
 [sub_resource type="Environment" id="Environment_3hj2p"]
 ambient_light_color = Color(0.4, 0.4, 0.4, 1)
 ambient_light_energy = 0.3
+fog_enabled = true
+fog_light_color = Color(0.8, 0.9, 1.0, 1)
+fog_light_energy = 0.25
+fog_sun_scatter = 0.0
+fog_density = 0.001
+fog_sky_affect = 0.0
 
 [node name="Main" type="Node3D"]
 
@@ -24,6 +33,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
 script = ExtResource("2_j4b7s")
 
 [node name="FleshCube" parent="Player" instance=ExtResource("4_flesh")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Player"]
+shape = SubResource("BoxShape3D_1")
 
 [node name="ExplosionSystem" type="Node3D" parent="Player"]
 script = ExtResource("6_t7r4k")
