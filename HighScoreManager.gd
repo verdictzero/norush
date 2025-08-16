@@ -58,7 +58,7 @@ func load_scores():
 		if parse_result == OK:
 			var data = json.data
 			if data is Array:
-				high_scores = data
+				high_scores.assign(data)
 			else:
 				high_scores = []
 		else:

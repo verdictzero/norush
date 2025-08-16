@@ -47,19 +47,8 @@ func create_cube_gore(explosion_pos: Vector3):
 				mesh = prism_mesh
 		
 		mesh_instance.mesh = mesh
-		var material = StandardMaterial3D.new()
 		
-		var gore_colors = [
-			Color(0.8, 0.1, 0.1),
-			Color(0.9, 0.2, 0.1),
-			Color(0.7, 0.05, 0.05),
-			Color(0.95, 0.3, 0.2),
-			Color(0.6, 0.0, 0.0)
-		]
-		material.albedo_color = gore_colors[randi() % gore_colors.size()]
-		material.metallic = randf_range(0.0, 0.3)
-		material.roughness = randf_range(0.4, 1.0)
-		mesh_instance.material_override = material
+		# Keep cubes untextured (no material override)
 		
 		var shape = mesh.create_convex_shape()
 		collision_shape.shape = shape
@@ -79,15 +68,20 @@ func create_cube_gore(explosion_pos: Vector3):
 			randf_range(-25, 25)
 		)
 		
-		get_tree().current_scene.add_child(debris)
-		debris.apply_impulse(force)
-		debris.angular_velocity = Vector3(
-			randf_range(-10, 10),
-			randf_range(-10, 10),
-			randf_range(-10, 10)
-		)
-		
-		create_fade_timer(debris)
+		# Ensure we have a valid scene tree before adding
+		if get_tree() and get_tree().current_scene:
+			get_tree().current_scene.add_child(debris)
+			# Apply impulse after adding to scene
+			debris.apply_impulse(force)
+			debris.angular_velocity = Vector3(
+				randf_range(-10, 10),
+				randf_range(-10, 10),
+				randf_range(-10, 10)
+			)
+			
+			create_fade_timer(debris)
+		else:
+			debris.queue_free()
 
 func create_fluid_splatter(explosion_pos: Vector3):
 	for i in range(8):
@@ -165,7 +159,7 @@ func create_particle_blood(explosion_pos: Vector3):
 
 func create_fade_timer(object: Node3D):
 	var tween = create_tween()
-	tween.tween_delay(25.0)
+	tween.tween_interval(25.0)
 	tween.tween_method(fade_object.bind(object), 1.0, 0.0, 5.0)
 	tween.tween_callback(func(): object.queue_free())
 

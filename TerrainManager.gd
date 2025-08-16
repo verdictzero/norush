@@ -1,13 +1,15 @@
 extends Node3D
 
 @export var chunk_size: int = 32
-@export var render_distance: int = 6
+@export var render_distance: int = 15
 @export var max_lod_level: int = 3
 
 var chunks: Dictionary = {}
 var player: Node3D
 var terrain_material: StandardMaterial3D
 var last_player_chunk: Vector2 = Vector2.INF
+var update_timer: float = 0.0
+var update_frequency: float = 0.5
 
 func _ready():
 	player = get_parent().find_child("Player")
@@ -18,26 +20,21 @@ func setup_material():
 	terrain_material.albedo_color = Color.WHITE
 	terrain_material.roughness = 0.8
 	terrain_material.metallic = 0.0
+	terrain_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	terrain_material.uv1_scale = Vector3(8.0, 8.0, 8.0)  # Increase tiling
 	
-	var checker_texture = ImageTexture.new()
-	var image = Image.create(64, 64, false, Image.FORMAT_RGB8)
-	
-	for x in range(64):
-		for y in range(64):
-			var checker_x = int(x / 8) % 2
-			var checker_y = int(y / 8) % 2
-			var color = Color(0.2, 0.8, 0.3) if (checker_x + checker_y) % 2 == 0 else Color(0.1, 0.5, 0.2)
-			image.set_pixel(x, y, color)
-	
-	checker_texture.set_image(image)
-	terrain_material.albedo_texture = checker_texture
+	var grass_texture = load("res://grass_checkered.tga")
+	terrain_material.albedo_texture = grass_texture
 
-func _process(_delta):
+func _process(delta):
 	if player:
-		var current_chunk = world_to_chunk(player.global_position)
-		if current_chunk != last_player_chunk:
-			update_terrain()
-			last_player_chunk = current_chunk
+		update_timer += delta
+		if update_timer >= update_frequency:
+			var current_chunk = world_to_chunk(player.global_position)
+			if current_chunk.distance_to(last_player_chunk) > 1:
+				update_terrain()
+				last_player_chunk = current_chunk
+			update_timer = 0.0
 
 func update_terrain():
 	var player_chunk = world_to_chunk(player.global_position)
@@ -65,7 +62,7 @@ func world_to_chunk(world_pos: Vector3) -> Vector2:
 func create_chunk(chunk_pos: Vector2):
 	var chunk_key = str(chunk_pos)
 	var distance_to_player = chunk_pos.distance_to(world_to_chunk(player.global_position))
-	var lod_level = min(int(distance_to_player / 2), max_lod_level)
+	var lod_level = min(int(distance_to_player / 3), max_lod_level)
 	
 	var static_body = StaticBody3D.new()
 	var mesh_instance = MeshInstance3D.new()
@@ -75,12 +72,19 @@ func create_chunk(chunk_pos: Vector2):
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = terrain_material
 	
-	var shape = mesh.create_trimesh_shape()
-	collision_shape.shape = shape
+	# Performance optimizations
+	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mesh_instance.visibility_range_end = 500.0
+	mesh_instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+	
+	# Only add collision for close chunks
+	if distance_to_player < 4:
+		var shape = mesh.create_trimesh_shape()
+		collision_shape.shape = shape
+		static_body.add_child(collision_shape)
 	
 	static_body.position = Vector3(chunk_pos.x * chunk_size, 0, chunk_pos.y * chunk_size)
 	static_body.add_child(mesh_instance)
-	static_body.add_child(collision_shape)
 	
 	add_child(static_body)
 	chunks[chunk_key] = static_body
@@ -91,12 +95,15 @@ func generate_terrain_mesh(chunk_pos: Vector2, lod_level: int) -> ArrayMesh:
 	var indices = PackedInt32Array()
 	var uvs = PackedVector2Array()
 	
-	var step = 1 << lod_level
-	var resolution = chunk_size / step
+	# Exponential LOD reduction for better performance
+	var step = 1 << (lod_level + 1)
+	step = max(step, 1)
+	var resolution = max(chunk_size / step, 2)
 	
-	vertices.resize((resolution + 1) * (resolution + 1))
-	normals.resize((resolution + 1) * (resolution + 1))
-	uvs.resize((resolution + 1) * (resolution + 1))
+	var vertex_count = (resolution + 1) * (resolution + 1)
+	vertices.resize(vertex_count)
+	normals.resize(vertex_count)
+	uvs.resize(vertex_count)
 	
 	var vertex_index = 0
 	for x in range(resolution + 1):

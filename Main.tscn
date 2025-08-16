@@ -1,17 +1,14 @@
-[gd_scene load_steps=12 format=3 uid="uid://bqe2vdpjmu5ya"]
+[gd_scene load_steps=11 format=3 uid="uid://bqe2vdpjmu5ya"]
 
 [ext_resource type="Script" uid="uid://c6qk20o8g1h8v" path="res://TerrainManager.gd" id="1_2x3wv"]
 [ext_resource type="Script" uid="uid://b2j5yi736waqf" path="res://Player.gd" id="2_j4b7s"]
 [ext_resource type="Script" uid="uid://x4iymjx76r7e" path="res://ThirdPersonCamera.gd" id="3_k8m9p"]
+[ext_resource type="PackedScene" uid="uid://345g5m4ejne2" path="res://flesh_cube.glb" id="4_flesh"]
 [ext_resource type="Script" uid="uid://6qfbja3a2dj2" path="res://UI.gd" id="5_n8p3m"]
 [ext_resource type="Script" uid="uid://cwy4s3i0dw30t" path="res://ExplosionSystem.gd" id="6_t7r4k"]
 [ext_resource type="Script" uid="uid://dvxbyyvsofmig" path="res://DayNightCycle.gd" id="7_m5n8x"]
 [ext_resource type="Script" uid="uid://feep8nip02ag" path="res://HighScoreManager.gd" id="8_k2l9s"]
 [ext_resource type="Script" uid="uid://b8naj3juwtaeo" path="res://BushSpawner.gd" id="9_p5r8t"]
-
-[sub_resource type="BoxMesh" id="BoxMesh_1rqx0"]
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_j9n2w"]
 
 [sub_resource type="Environment" id="Environment_3hj2p"]
 ambient_light_color = Color(0.4, 0.4, 0.4, 1)
@@ -22,15 +19,11 @@ ambient_light_energy = 0.3
 [node name="TerrainManager" type="Node3D" parent="."]
 script = ExtResource("1_2x3wv")
 
-[node name="Player" type="CharacterBody3D" parent="."]
+[node name="Player" type="RigidBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
 script = ExtResource("2_j4b7s")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Player"]
-mesh = SubResource("BoxMesh_1rqx0")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Player"]
-shape = SubResource("BoxShape3D_j9n2w")
+[node name="FleshCube" parent="Player" instance=ExtResource("4_flesh")]
 
 [node name="ExplosionSystem" type="Node3D" parent="Player"]
 script = ExtResource("6_t7r4k")

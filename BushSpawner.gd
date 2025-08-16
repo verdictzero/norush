@@ -1,6 +1,6 @@
 extends Node3D
 
-@export var spawn_distance: float = 100.0
+@export var spawn_distance: float = 80.0
 @export var clusters_per_chunk: int = 3
 @export var bushes_per_cluster: int = 5
 @export var cluster_radius: float = 4.0
@@ -10,6 +10,8 @@ extends Node3D
 var spawned_bushes: Dictionary = {}
 var player: Node3D
 var bush_material: StandardMaterial3D
+var update_timer: float = 0.0
+var update_frequency: float = 1.0
 
 func _ready():
 	player = get_parent().find_child("Player")
@@ -25,10 +27,14 @@ func setup_bush_material():
 	bush_material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	bush_material.no_depth_test = false
 	bush_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	bush_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 
-func _process(_delta):
+func _process(delta):
 	if player:
-		update_bushes()
+		update_timer += delta
+		if update_timer >= update_frequency:
+			update_bushes()
+			update_timer = 0.0
 
 func update_bushes():
 	var player_pos = player.global_position
